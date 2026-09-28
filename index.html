@@ -141,8 +141,8 @@ footer a { color: inherit; }
   因緣「柔能制剛」要求的因子「陰」目前沒有任何英傑擁有，這條不會成立。
 </footer>
 
-<script src="data.js?v=3"></script>
-<script src="solver.js?v=3"></script>
+<script src="data.js?v=4"></script>
+<script src="solver.js?v=4"></script>
 <script>
 (function () {
   'use strict';
@@ -259,7 +259,11 @@ footer a { color: inherit; }
 
   function renderResults(res, list, statLabel) {
     if (res.error) { $('results').innerHTML = `<p class="none">${esc(res.error)}</p>`; return; }
-    if (!res.results.length) { $('results').innerHTML = '<p class="none">沒有符合條件的陣法</p>'; return; }
+    if (!res.results.length) {
+      const hint = $('useCap').checked ? '。資料表的コスト大多是 6～8，六人很容易超過上限，可以取消「套用價值上限」再試' : '';
+      $('results').innerHTML = `<p class="none">沒有符合條件的陣法${hint}</p>`;
+      return;
+    }
     $('results').innerHTML = res.results.map((r, k) => {
       const F = JinpoSolver.FORMATIONS[r.formation];
       const groups = F.triples.map((t, g) => {
@@ -285,7 +289,7 @@ footer a { color: inherit; }
     $('status').textContent = '計算程式版本不符，請按 Ctrl+F5 重新整理。';
   }
   let worker = null;
-  try { worker = new Worker('worker.js?v=3'); } catch (e) { worker = null; }
+  try { worker = new Worker('worker.js?v=4'); } catch (e) { worker = null; }
 
   $('run').onclick = () => {
     const list = heroes.filter(h => owned.has(h.name));

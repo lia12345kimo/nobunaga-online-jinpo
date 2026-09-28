@@ -109,10 +109,12 @@
     for (let i = 0; i < 20; i++) triMask[i] = new Int32Array(words);
     function popcount(x) { x -= (x >>> 1) & 0x55555555; x = (x & 0x33333333) + ((x >>> 2) & 0x33333333); return (((x + (x >>> 4)) & 0x0F0F0F0F) * 0x01010101) >>> 24; }
     const union = new Int32Array(words);
-    function evaluate(set) {
+    // soft：超過價值上限時不直接淘汰，改依超出量扣分（隨機搜尋用，讓它能往上限內移動）
+    function evaluate(set, soft) {
       let s = 0, c = 0;
       for (const h of set) { s += value[h]; c += cost[h]; }
-      if (cap && c > cap) return null;
+      const over = cap ? Math.max(0, c - cap) : 0;
+      if (over && !soft) return null;
       for (let i = 0; i < 20; i++) {
         const [a, b, d] = TRI6[i];
         const got = table.matched(set[a], set[b], set[d]);
@@ -134,13 +136,15 @@
         if (!best || f > best.f) best = { f, e, l: links, s: Math.round(s), c, a };
       }
       best.slots = best.a.slots.map(i => set[i]);
+      best.over = over;
+      if (over) best.f -= 1000 + over * 100;
       return best;
     }
 
     const found = new Map();
     let floor = -Infinity;
     function record(r) {
-      if (!r || r.e < o.minEnnen) return;
+      if (!r || r.over || r.e < o.minEnnen) return;
       const key = [...r.slots].sort((a, b) => a - b).join(',');
       if (found.has(key)) return;
       if (found.size >= o.topK && r.f <= floor) return;
@@ -181,20 +185,18 @@
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
       };
       const pickFree = set => { let h; do { h = pool[Math.floor(random() * pool.length)]; } while (set.includes(h)); return h; };
-      const worst = { f: -Infinity };
       complete = false;
       while (Date.now() < deadline) {
         let set = required.slice();
         while (set.length < 6) set.push(pickFree(set));
-        let cur = evaluate(set) || worst;
+        let cur = evaluate(set, true);
         record(cur);
         let temp = 1.0;
         for (let i = 0; i < 3000; i++) {
           const j = required.length + Math.floor(random() * free);
           const next = set.slice(); next[j] = pickFree(set);
-          const cand = evaluate(next);
+          const cand = evaluate(next, true);
           evals++;
-          if (!cand) continue;
           record(cand);
           const d = cand.f - cur.f;
           if (d >= 0 || random() < Math.exp(d / temp)) { set = next; cur = cand; }
@@ -208,9 +210,8 @@
             for (const h of pool) {
               if (set.includes(h)) continue;
               const next = set.slice(); next[j] = h;
-              const cand = evaluate(next);
+              const cand = evaluate(next, true);
               evals++;
-              if (!cand) continue;
               record(cand);
               if (cand.f > cur.f + 1e-9) { set = next; cur = cand; improved = true; break; }
             }
