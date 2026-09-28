@@ -141,8 +141,8 @@ footer a { color: inherit; }
   因緣「柔能制剛」要求的因子「陰」目前沒有任何英傑擁有，這條不會成立。
 </footer>
 
-<script src="data.js"></script>
-<script src="solver.js"></script>
+<script src="data.js?v=3"></script>
+<script src="solver.js?v=3"></script>
 <script>
 (function () {
   'use strict';
@@ -280,8 +280,12 @@ footer a { color: inherit; }
     }).join('');
   }
 
+  if (!JinpoSolver.FORMATIONS) {
+    // 網頁是新版、計算程式卻是快取的舊版
+    $('status').textContent = '計算程式版本不符，請按 Ctrl+F5 重新整理。';
+  }
   let worker = null;
-  try { worker = new Worker('worker.js'); } catch (e) { worker = null; }
+  try { worker = new Worker('worker.js?v=3'); } catch (e) { worker = null; }
 
   $('run').onclick = () => {
     const list = heroes.filter(h => owned.has(h.name));
@@ -300,9 +304,19 @@ footer a { color: inherit; }
       const how = res.exact ? (res.complete ? '已試過所有組合，以下是最佳解' : '時間到，以下是目前找到的最佳解')
         : '人數較多，以隨機搜尋找出，不保證是絕對最佳，可再按一次比較';
       $('status').textContent = res.error ? '' : `${how}（${(res.ms / 1000).toFixed(1)} 秒）`;
-      renderResults(res, list, STAT_OPTIONS[statIdx].label);
+      try {
+        renderResults(res, list, STAT_OPTIONS[statIdx].label);
+      } catch (err) {
+        fail(err);
+      }
     };
-    const runHere = () => setTimeout(() => done(JinpoSolver.solve(payload, D.ennen, options)), 30);
+    const fail = err => {
+      $('run').disabled = false;
+      $('status').textContent = `計算出錯：${err && err.message ? err.message : err}。請按 Ctrl+F5 重新整理後再試；仍然出錯請回報這段訊息。`;
+    };
+    const runHere = () => setTimeout(() => {
+      try { done(JinpoSolver.solve(payload, D.ennen, options)); } catch (err) { fail(err); }
+    }, 30);
     if (!worker) return runHere();
     worker.onmessage = e => done(e.data);
     worker.onerror = e => { e.preventDefault(); worker = null; runHere(); };
