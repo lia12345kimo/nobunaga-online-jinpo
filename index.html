@@ -144,8 +144,8 @@ footer a { color: inherit; }
   因緣「柔能制剛」要求的因子「陰」目前沒有任何英傑擁有，這條不會成立。
 </footer>
 
-<script src="data.js?v=5"></script>
-<script src="solver.js?v=5"></script>
+<script src="data.js?v=6"></script>
+<script src="solver.js?v=6"></script>
 <script>
 (function () {
   'use strict';
@@ -165,7 +165,7 @@ footer a { color: inherit; }
   // 突破次數：每突破一次價值減 1，最多 4 次（突滿時 8 變 4）
   const MAX_TOT = 4;
   const tot = store.get('jinpo.tot', {});
-  const price = h => Math.max(1, h.cost - (tot[h.name] || 0));
+  const price = h => Math.max(0, h.cost - (tot[h.name] || 0));
   let onlyOwned = false;
 
   STAT_OPTIONS.forEach((o, i) => $('stat').add(new Option(o.label, i)));
@@ -308,7 +308,7 @@ footer a { color: inherit; }
     $('status').textContent = '計算程式版本不符，請按 Ctrl+F5 重新整理。';
   }
   let worker = null;
-  try { worker = new Worker('worker.js?v=5'); } catch (e) { worker = null; }
+  try { worker = new Worker('worker.js?v=6'); } catch (e) { worker = null; }
 
   $('run').onclick = () => {
     const list = heroes.filter(h => owned.has(h.name));
