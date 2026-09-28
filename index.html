@@ -52,6 +52,8 @@ button:disabled { opacity: .5; cursor: default; }
 .chip { background: var(--chip); border-radius: 4px; padding: 0 5px; font-size: 12px; color: var(--ink); }
 .lockbtn { font-size: 12px; padding: 1px 7px; }
 .lockbtn.on { background: var(--lock); border-color: var(--lock); color: #fff; }
+.tot { font-size: 12px; padding: 0 2px; }
+.price { font-weight: 600; color: var(--ink); }
 .hero.owned .name { color: var(--accent); }
 .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 14px; margin-bottom: 12px; }
 .opts label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
@@ -92,6 +94,7 @@ footer a { color: inherit; }
       <button id="checkShown">勾選顯示中的</button>
       <button id="uncheckShown">取消顯示中的</button>
       <button id="onlyOwned">只看已勾選</button>
+      <button id="maxTot">勾選的全部設為突滿</button>
     </div>
     <div id="heroList" role="list"></div>
     <details>
@@ -126,7 +129,7 @@ footer a { color: inherit; }
         <input type="number" id="minEnnen" min="0" max="18" value="0">
       </label>
       <label class="inline"><input type="checkbox" id="distinct" checked> 同名因緣只算一次</label>
-      <label class="inline"><input type="checkbox" id="useCap"> 套用價值上限（用コスト，可能與遊戲不同）</label>
+      <label class="inline"><input type="checkbox" id="useCap"> 套用價值上限（價值＝コスト－突破次數）</label>
     </div>
     <div id="locked"></div>
     <button class="primary" id="run">開始計算</button>
@@ -137,12 +140,12 @@ footer a { color: inherit; }
 <footer>
   英傑資料與因緣規則取自 <a href="https://imagawan.yoshi-moto.com/eiketsu20.html" target="_blank" rel="noopener">英傑レベル20ステータス（お汀さん）</a>，為日版名稱與信賴度 Lv20 數值。
   「能力」是六人 Lv20 數值的合計再乘上陣型加成，只供比較用，不等於遊戲顯示的陣法加成。
-  資料表的「コスト」與遊戲的「陣型價值」不同，預設不套用價值上限。
+  價值以「コスト－突破次數」計算（每突破一次減 1，突滿減 4）。
   因緣「柔能制剛」要求的因子「陰」目前沒有任何英傑擁有，這條不會成立。
 </footer>
 
-<script src="data.js?v=4"></script>
-<script src="solver.js?v=4"></script>
+<script src="data.js?v=5"></script>
+<script src="solver.js?v=5"></script>
 <script>
 (function () {
   'use strict';
@@ -159,6 +162,10 @@ footer a { color: inherit; }
   };
   const owned = new Set(store.get('jinpo.owned', []).filter(n => heroes.some(h => h.name === n)));
   const locked = new Set(store.get('jinpo.locked', []).filter(n => owned.has(n)));
+  // 突破次數：每突破一次價值減 1，最多 4 次（突滿時 8 變 4）
+  const MAX_TOT = 4;
+  const tot = store.get('jinpo.tot', {});
+  const price = h => Math.max(1, h.cost - (tot[h.name] || 0));
   let onlyOwned = false;
 
   STAT_OPTIONS.forEach((o, i) => $('stat').add(new Option(o.label, i)));
@@ -171,6 +178,7 @@ footer a { color: inherit; }
   function save() {
     store.set('jinpo.owned', [...owned]);
     store.set('jinpo.locked', [...locked]);
+    store.set('jinpo.tot', tot);
     store.set('jinpo.stat', $('stat').value);
     store.set('jinpo.mode', $('mode').value);
     store.set('jinpo.distinct', $('distinct').checked);
@@ -193,7 +201,11 @@ footer a { color: inherit; }
         <label><input type="checkbox" data-name="${esc(h.name)}"${owned.has(h.name) ? ' checked' : ''}>
         <span class="name">${esc(h.name)}</span></label>
         <button class="lockbtn${locked.has(h.name) ? ' on' : ''}" data-lock="${esc(h.name)}" title="一定要上場">${locked.has(h.name) ? '必上' : '鎖定'}</button>
-        <div class="meta"><span>コスト ${h.cost}</span>${h.factors.map(f => `<span class="chip">${esc(f)}</span>`).join('')}</div>
+        <div class="meta">${owned.has(h.name)
+          ? `<select class="tot" data-tot="${esc(h.name)}" aria-label="突破次數">${[...Array(MAX_TOT + 1).keys()].map(t =>
+              `<option value="${t}"${(tot[h.name] || 0) === t ? ' selected' : ''}>${t ? t + ' 突' : '未突'}</option>`).join('')}</select>
+            <span class="price">價值 ${price(h)}</span><span>（コスト ${h.cost}）</span>`
+          : `<span>コスト ${h.cost}</span>`}${h.factors.map(f => `<span class="chip">${esc(f)}</span>`).join('')}</div>
       </div>`).join('') || '<p class="none">沒有符合的英傑</p>';
     $('ownedCount').textContent = `已勾選 ${owned.size} 名／共 ${heroes.length} 名`;
     $('onlyOwned').textContent = onlyOwned ? '顯示全部' : '只看已勾選';
@@ -203,6 +215,12 @@ footer a { color: inherit; }
   }
 
   $('heroList').addEventListener('change', e => {
+    if (e.target.dataset.tot) {
+      const t = +e.target.value;
+      if (t) tot[e.target.dataset.tot] = t; else delete tot[e.target.dataset.tot];
+      save(); renderList();
+      return;
+    }
     const n = e.target.dataset.name;
     if (!n) return;
     if (e.target.checked) owned.add(n); else { owned.delete(n); locked.delete(n); }
@@ -219,6 +237,7 @@ footer a { color: inherit; }
   $('checkShown').onclick = () => { shown().forEach(h => owned.add(h.name)); save(); renderList(); };
   $('uncheckShown').onclick = () => { shown().forEach(h => { owned.delete(h.name); locked.delete(h.name); }); save(); renderList(); };
   $('onlyOwned').onclick = () => { onlyOwned = !onlyOwned; renderList(); };
+  $('maxTot').onclick = () => { owned.forEach(n => { tot[n] = MAX_TOT; }); save(); renderList(); };
   $('exportOwned').onclick = () => { $('ownedText').value = [...owned].join('\n'); };
   $('importOwned').onclick = () => {
     const names = $('ownedText').value.split(/[\n,，、]+/).map(s => s.trim()).filter(Boolean);
@@ -260,7 +279,7 @@ footer a { color: inherit; }
   function renderResults(res, list, statLabel) {
     if (res.error) { $('results').innerHTML = `<p class="none">${esc(res.error)}</p>`; return; }
     if (!res.results.length) {
-      const hint = $('useCap').checked ? '。資料表的コスト大多是 6～8，六人很容易超過上限，可以取消「套用價值上限」再試' : '';
+      const hint = $('useCap').checked ? '。可能是價值上限太低：檢查各英傑的突破次數，或取消「套用價值上限」再試' : '';
       $('results').innerHTML = `<p class="none">沒有符合條件的陣法${hint}</p>`;
       return;
     }
@@ -277,7 +296,7 @@ footer a { color: inherit; }
         <h3><span>第 ${k + 1} 名</span><span>${esc(r.formation)}</span><span class="big">因緣 ${r.ennen}</span>
           <span class="sub">連線 ${r.links}/${F.triples.length} 組</span>
           <span class="sub">${esc(statLabel)} ${r.value.toLocaleString()}</span>
-          <span class="sub">コスト ${r.cost}/${F.cap}</span></h3>
+          <span class="sub">價值 ${r.cost}/${F.cap}</span></h3>
         <div>${formationSvg(r, list)}</div>
         <div class="triples">${groups}</div>
       </div>`;
@@ -289,12 +308,12 @@ footer a { color: inherit; }
     $('status').textContent = '計算程式版本不符，請按 Ctrl+F5 重新整理。';
   }
   let worker = null;
-  try { worker = new Worker('worker.js?v=4'); } catch (e) { worker = null; }
+  try { worker = new Worker('worker.js?v=5'); } catch (e) { worker = null; }
 
   $('run').onclick = () => {
     const list = heroes.filter(h => owned.has(h.name));
     const statIdx = +$('stat').value;
-    const payload = list.map(h => ({ factors: h.factors, stats: h.stats, cost: h.cost }));
+    const payload = list.map(h => ({ factors: h.factors, stats: h.stats, cost: price(h) }));
     const required = list.map((h, i) => (locked.has(h.name) ? i : -1)).filter(i => i >= 0);
     const formation = $('formation').value;
     const options = { formation, mode: $('mode').value, stats: STAT_OPTIONS[statIdx].idx,
