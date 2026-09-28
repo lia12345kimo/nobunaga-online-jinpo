@@ -8,17 +8,17 @@
 :root {
   --bg: #f6f4ef; --panel: #ffffff; --ink: #22201c; --muted: #6d675d; --line: #e2ddd2;
   --accent: #9b2c2c; --accent-soft: #f6e3e1; --chip: #efeae0; --good: #2f6f4f; --lock: #b7791f;
-  --t0: #c0392b; --t1: #2e86ab; --t2: #6c5ce7; --t3: #d68910; --t4: #27ae60; --t5: #8e44ad;
+  --t0: #3b3834; --t1: #2f8f8a; --t2: #a8373a;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #1b1a18; --panel: #25231f; --ink: #ece7dc; --muted: #a39c8f; --line: #3a3731;
-    --accent: #e07a6f; --accent-soft: #3d2826; --chip: #33302a; --good: #7fc8a0; --lock: #e0b060;
+    --accent: #e07a6f; --accent-soft: #3d2826; --chip: #33302a; --good: #7fc8a0; --lock: #e0b060; --t0: #8a857c;
   }
 }
 :root[data-theme="dark"] {
   --bg: #1b1a18; --panel: #25231f; --ink: #ece7dc; --muted: #a39c8f; --line: #3a3731;
-  --accent: #e07a6f; --accent-soft: #3d2826; --chip: #33302a; --good: #7fc8a0; --lock: #e0b060;
+  --accent: #e07a6f; --accent-soft: #3d2826; --chip: #33302a; --good: #7fc8a0; --lock: #e0b060; --t0: #8a857c;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink);
@@ -59,12 +59,12 @@ button:disabled { opacity: .5; cursor: default; }
 #status { color: var(--muted); font-size: 13px; margin: 8px 0; min-height: 1.5em; }
 #locked { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; font-size: 13px; }
 .card { border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-top: 12px;
-  display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 14px; }
+  display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 14px; }
 @media (max-width: 640px) { .card { grid-template-columns: minmax(0, 1fr); } }
 .card h3 { margin: 0 0 6px; font-size: 15px; grid-column: 1 / -1; display: flex; gap: 12px; flex-wrap: wrap; align-items: baseline; }
 .card h3 .big { color: var(--accent); font-size: 20px; }
 .card h3 .sub { color: var(--muted); font-weight: normal; font-size: 13px; }
-svg.ring { width: 100%; max-width: 280px; height: auto; }
+svg.ring { width: 100%; max-width: 300px; height: auto; }
 svg.ring text { fill: var(--ink); font-size: 13px; }
 svg.ring .slot { fill: var(--bg); stroke: var(--line); }
 .triples { font-size: 13px; }
@@ -82,7 +82,7 @@ footer a { color: inherit; }
 <body>
 <header>
   <h1>信長之野望 Online 英傑陣法計算</h1>
-  <p>勾選持有的英傑，找出因緣最多、連線最多或能力最高的六人排法。相鄰三人各提供一個因子，即成立一個因緣；有成立因緣的三人組會連線。</p>
+  <p>勾選持有的英傑，找出因緣最多、連線最多或能力最高的六人排法。陣型中以同色線連起的三人為一組，三人各提供一個因子即成立一個因緣。</p>
 </header>
 <main>
   <section>
@@ -103,10 +103,19 @@ footer a { color: inherit; }
   <section>
     <h2>條件</h2>
     <div class="opts">
+      <label>陣型
+        <select id="formation">
+          <option value="all">四種都比較</option>
+          <option value="衡軛">衡軛（上限 36，兩組，全能力 +5%）</option>
+          <option value="鶴翼">鶴翼（上限 30，兩組，生耐魅四象 +10%）</option>
+          <option value="魚鱗">魚鱗（上限 24，三組，氣腕耐靈 +10%）</option>
+          <option value="方圓">方圓（上限 24，三組，氣智魅四象 +10%）</option>
+        </select>
+      </label>
       <label>目標
         <select id="mode">
           <option value="ennen">因緣最多（同數時比能力）</option>
-          <option value="links">連線最多（亮線的三人組越多越好）</option>
+          <option value="links">連線最多（亮線的組數越多越好）</option>
           <option value="value">能力最高</option>
         </select>
       </label>
@@ -117,6 +126,7 @@ footer a { color: inherit; }
         <input type="number" id="minEnnen" min="0" max="18" value="0">
       </label>
       <label class="inline"><input type="checkbox" id="distinct" checked> 同名因緣只算一次</label>
+      <label class="inline"><input type="checkbox" id="useCap"> 套用價值上限（用コスト，可能與遊戲不同）</label>
     </div>
     <div id="locked"></div>
     <button class="primary" id="run">開始計算</button>
@@ -126,7 +136,8 @@ footer a { color: inherit; }
 </main>
 <footer>
   英傑資料與因緣規則取自 <a href="https://imagawan.yoshi-moto.com/eiketsu20.html" target="_blank" rel="noopener">英傑レベル20ステータス（お汀さん）</a>，為日版名稱與信賴度 Lv20 數值。
-  「能力」是六人 Lv20 數值的合計，只供比較用，不等於遊戲顯示的陣法加成。
+  「能力」是六人 Lv20 數值的合計再乘上陣型加成，只供比較用，不等於遊戲顯示的陣法加成。
+  資料表的「コスト」與遊戲的「陣型價值」不同，預設不套用價值上限。
   因緣「柔能制剛」要求的因子「陰」目前沒有任何英傑擁有，這條不會成立。
 </footer>
 
@@ -136,11 +147,12 @@ footer a { color: inherit; }
 (function () {
   'use strict';
   const D = JINPO_DATA;
-  const STAT_OPTIONS = D.stats.map((s, i) => ({ label: s, pick: st => st[i] }))
-    .concat([{ label: '四象合計（土水火風）', pick: st => st[7] + st[8] + st[9] + st[10] }]);
+  const STAT_OPTIONS = ['生命', '氣合', '腕力', '耐久', '靈（日版器用）', '智力', '魅力', '土屬性', '水屬性', '火屬性', '風屬性']
+    .map((label, i) => ({ label, idx: [i] }))
+    .concat([{ label: '四象合計（土水火風）', idx: [7, 8, 9, 10] }]);
   const heroes = D.heroes.map(([name, cost, factors, stats], i) => ({ i, name, cost, factors, stats }));
   const $ = id => document.getElementById(id);
-  const TRIPLE_COLORS = ['--t0', '--t1', '--t2', '--t3', '--t4', '--t5'];
+  const TRIPLE_COLORS = ['--t0', '--t1', '--t2'];
   const store = {
     get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* 無法儲存時忽略 */ } }
@@ -152,6 +164,8 @@ footer a { color: inherit; }
   STAT_OPTIONS.forEach((o, i) => $('stat').add(new Option(o.label, i)));
   $('stat').value = store.get('jinpo.stat', 6);
   $('mode').value = store.get('jinpo.mode', 'ennen');
+  $('formation').value = store.get('jinpo.formation', 'all');
+  $('useCap').checked = store.get('jinpo.useCap', false);
   $('distinct').checked = store.get('jinpo.distinct', true);
 
   function save() {
@@ -160,6 +174,8 @@ footer a { color: inherit; }
     store.set('jinpo.stat', $('stat').value);
     store.set('jinpo.mode', $('mode').value);
     store.set('jinpo.distinct', $('distinct').checked);
+    store.set('jinpo.formation', $('formation').value);
+    store.set('jinpo.useCap', $('useCap').checked);
   }
 
   function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
@@ -213,47 +229,53 @@ footer a { color: inherit; }
     save(); renderList();
     $('status').textContent = `匯入 ${known.length} 名` + (unknown.length ? `，找不到：${unknown.join('、')}` : '');
   };
-  ['stat', 'mode', 'distinct'].forEach(id => $(id).addEventListener('change', save));
+  ['stat', 'mode', 'distinct', 'formation', 'useCap'].forEach(id => $(id).addEventListener('change', save));
 
-  // 六角形：與遊戲畫面相同，從左上開始順時針
-  const POS = [[70, 60], [150, 22], [230, 60], [230, 150], [150, 188], [70, 150]];
-  function ringSvg(names, detail) {
-    const tripleHas = new Set(detail.map(d => d.slot));
-    let lines = '';
-    for (let i = 0; i < 6; i++) {
-      const a = POS[i], b = POS[(i + 1) % 6];
-      // 相鄰兩人的連線，屬於有成立因緣的三人組就上色
-      const slot = [...tripleHas].find(s => s === i || s === (i + 5) % 6);
-      const color = slot === undefined ? 'var(--line)' : `var(${TRIPLE_COLORS[slot]})`;
-      lines += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${color}" stroke-width="3"/>`;
-    }
-    const nodes = names.map((n, i) => {
-      const [x, y] = POS[i];
+  // 各陣型格子在圖上的位置，與遊戲畫面相同；triples 的第 0、1、2 組分別是黑、青、紅線
+  const SLOT_POS = {
+    '衡軛': [[100, 35], [100, 115], [100, 195], [230, 35], [230, 115], [230, 195]],
+    '鶴翼': [[60, 35], [110, 115], [150, 195], [270, 35], [220, 115], [180, 195]],
+    '魚鱗': [[165, 35], [110, 115], [220, 115], [55, 195], [165, 195], [275, 195]],
+    '方圓': [[165, 30], [60, 80], [270, 80], [60, 155], [270, 155], [165, 200]]
+  };
+  function formationSvg(r, list) {
+    const F = JinpoSolver.FORMATIONS[r.formation];
+    const pos = SLOT_POS[r.formation];
+    const lines = F.triples.map((t, g) => {
+      const on = r.groups[g].length > 0;
+      const color = on ? `var(${TRIPLE_COLORS[g]})` : 'var(--line)';
+      return [[t[0], t[1]], [t[1], t[2]]].map(([a, b]) =>
+        `<line x1="${pos[a][0]}" y1="${pos[a][1]}" x2="${pos[b][0]}" y2="${pos[b][1]}" stroke="${color}" stroke-width="${on ? 4 : 2}"${on ? '' : ' stroke-dasharray="4 4"'}/>`).join('');
+    }).join('');
+    const nodes = r.slots.map((h, i) => {
+      const [x, y] = pos[i];
+      const n = list[h].name;
       const short = n.length > 7 ? n.slice(0, 7) + '…' : n;
-      return `<rect class="slot" x="${x - 58}" y="${y - 15}" width="116" height="30" rx="6"/>
+      return `<rect class="slot" x="${x - 52}" y="${y - 15}" width="104" height="30" rx="6"/>
         <text x="${x}" y="${y + 5}" text-anchor="middle"><title>${esc(n)}</title>${esc(short)}</text>`;
     }).join('');
-    return `<svg class="ring" viewBox="0 0 300 210" role="img" aria-label="${esc(names.join('、'))}">${lines}${nodes}</svg>`;
+    return `<svg class="ring" viewBox="0 0 330 230" role="img" aria-label="${esc(r.slots.map(h => list[h].name).join('、'))}">${lines}${nodes}</svg>`;
   }
 
   function renderResults(res, list, statLabel) {
     if (res.error) { $('results').innerHTML = `<p class="none">${esc(res.error)}</p>`; return; }
     if (!res.results.length) { $('results').innerHTML = '<p class="none">沒有符合條件的陣法</p>'; return; }
     $('results').innerHTML = res.results.map((r, k) => {
-      const names = r.ring.map(i => list[i].name);
-      const bySlot = [0, 1, 2, 3, 4, 5].map(s => r.detail.filter(d => d.slot === s).map(d => d.ennen));
-      const links = bySlot.filter(b => b.length).length;
-      const triples = bySlot.map((bonds, s) => {
-        const who = [0, 1, 2].map(j => names[(s + j) % 6]).join('・');
-        const tags = bonds.length
-          ? bonds.map(b => `<span class="bond" style="background:var(${TRIPLE_COLORS[s]})">${esc(b)}</span>`).join('')
+      const F = JinpoSolver.FORMATIONS[r.formation];
+      const groups = F.triples.map((t, g) => {
+        const who = t.map(i => list[r.slots[i]].name).join('・');
+        const tags = r.groups[g].length
+          ? r.groups[g].map(b => `<span class="bond" style="background:var(${TRIPLE_COLORS[g]})">${esc(b)}</span>`).join('')
           : '<span class="none">無</span>';
         return `<div class="triple"><span class="who">${esc(who)}</span><br>${tags}</div>`;
       }).join('');
       return `<div class="card">
-        <h3><span>第 ${k + 1} 名</span><span class="big">因緣 ${r.ennen}</span><span class="sub">連線 ${links}/6 組</span><span class="sub">${esc(statLabel)}合計 ${r.value.toLocaleString()}</span></h3>
-        <div>${ringSvg(names, r.detail)}</div>
-        <div class="triples">${triples}</div>
+        <h3><span>第 ${k + 1} 名</span><span>${esc(r.formation)}</span><span class="big">因緣 ${r.ennen}</span>
+          <span class="sub">連線 ${r.links}/${F.triples.length} 組</span>
+          <span class="sub">${esc(statLabel)} ${r.value.toLocaleString()}</span>
+          <span class="sub">コスト ${r.cost}/${F.cap}</span></h3>
+        <div>${formationSvg(r, list)}</div>
+        <div class="triples">${groups}</div>
       </div>`;
     }).join('');
   }
@@ -264,28 +286,27 @@ footer a { color: inherit; }
   $('run').onclick = () => {
     const list = heroes.filter(h => owned.has(h.name));
     const statIdx = +$('stat').value;
-    const pick = STAT_OPTIONS[statIdx].pick;
-    const payload = list.map(h => ({ factors: h.factors, value: pick(h.stats) }));
+    const payload = list.map(h => ({ factors: h.factors, stats: h.stats, cost: h.cost }));
     const required = list.map((h, i) => (locked.has(h.name) ? i : -1)).filter(i => i >= 0);
-    const options = { mode: $('mode').value, minEnnen: +$('minEnnen').value || 0, distinct: $('distinct').checked,
-      required, topK: 10, timeLimit: list.length <= 30 && $('mode').value !== 'links' ? 60000 : 5000 };
-    const exact = list.length <= 30 && $('mode').value !== 'links';
+    const formation = $('formation').value;
+    const options = { formation, mode: $('mode').value, stats: STAT_OPTIONS[statIdx].idx,
+      minEnnen: +$('minEnnen').value || 0, distinct: $('distinct').checked, useCap: $('useCap').checked,
+      required, topK: 10, timeLimit: formation === 'all' ? 8000 : 5000, seed: Date.now() };
     $('run').disabled = true;
-    $('status').textContent = exact ? `計算中（${list.length} 名，逐一窮舉）…` : `計算中（${list.length} 名，約 5 秒）…`;
+    $('status').textContent = `計算中（${list.length} 名）…`;
     $('results').innerHTML = '';
     const done = res => {
       $('run').disabled = false;
-      const how = exact ? (res.complete ? '已窮舉所有排法，以下是最佳解' : '時間到，以下是目前找到的最佳解')
-        : '以隨機搜尋找出，人數多時不保證是絕對最佳，可再按一次比較';
-      $('status').textContent = `${how}（${(res.ms / 1000).toFixed(1)} 秒）`;
+      const how = res.exact ? (res.complete ? '已試過所有組合，以下是最佳解' : '時間到，以下是目前找到的最佳解')
+        : '人數較多，以隨機搜尋找出，不保證是絕對最佳，可再按一次比較';
+      $('status').textContent = res.error ? '' : `${how}（${(res.ms / 1000).toFixed(1)} 秒）`;
       renderResults(res, list, STAT_OPTIONS[statIdx].label);
     };
-    const runHere = () => setTimeout(() => done((exact ? JinpoSolver.solve : JinpoSolver.search)(payload, D.ennen,
-      Object.assign({}, options, { seed: Date.now() }))), 30);
+    const runHere = () => setTimeout(() => done(JinpoSolver.solve(payload, D.ennen, options)), 30);
     if (!worker) return runHere();
     worker.onmessage = e => done(e.data);
     worker.onerror = e => { e.preventDefault(); worker = null; runHere(); };
-    worker.postMessage({ heroes: payload, ennen: D.ennen, options: Object.assign({}, options, { seed: Date.now() }), exact });
+    worker.postMessage({ heroes: payload, ennen: D.ennen, options });
   };
 
   renderList();

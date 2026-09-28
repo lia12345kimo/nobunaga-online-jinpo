@@ -1,7 +1,6 @@
 importScripts('solver.js');
 
 self.onmessage = function (event) {
-  const { heroes, ennen, options, exact } = event.data;
-  const run = exact ? JinpoSolver.solve : JinpoSolver.search;
-  self.postMessage(run(heroes, ennen, options));
+  const { heroes, ennen, options } = event.data;
+  self.postMessage(JinpoSolver.solve(heroes, ennen, options));
 };
